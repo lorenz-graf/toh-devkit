@@ -67,11 +67,13 @@ Most options are **solder jumpers**: small pads next to each other on the board.
 
 1.6 mm, HASL, 31 × 23.6 mm. Top row: 6 holes for the wires from the cover (`5V GND SDA SCL INT ID`, no VIN on purpose). Bottom row: 6-pin header into the breadboard, same order.
 
+**Through-hole or SMD (v3):** D1, R1 and R2 each have SMD pads between their through-hole pads, wired in parallel. Fit **either** the through-hole part **or** the SMD part, whichever you have: an SMA Schottky diode (e.g. SS14, cathode band toward the header like the through-hole one) and 1206 resistors (0805 should fit too when hand-soldering). The SMD pads only show without the through-hole parts: [renders/breakout-bare.png](renders/breakout-bare.png). v3 is designed but not made yet; the boards I ordered are v2 (through-hole only, [Gerbers](pcb/breakout/dev-toh-breakout-v2-gerbers-ordered.zip)).
+
 | Part | Does | As shipped / fitted | Change it when |
 |---|---|---|---|
-| **D1** 1N5817 (Schottky) | sits in the phone's 5 V line. I *think* it's needed: many small boards (the RP2040-Zero included) tie their 5 V pin directly to USB VBUS, and I couldn't find out whether the phone protects its 5 V output (pin 7) against power coming back in. With D1, USB should be able to stay plugged in while the cover is on the phone (flashing, serial debug). Costs ~0.3–0.45 V, so the breadboard gets ~4.6 V instead of 5 V; fine for the microcontroller, which makes its own 3.3 V | fitted, band (K) toward the header | keep it unless you know pin 7 is protected |
-| **R1** 6.2 kΩ | ID resistor for **DEV mode** (development ID, no memory chip; the phone should detect the cover without any firmware). **Use while developing** | fitted | |
-| **R2** 10 kΩ | ID resistor for **CHIP mode** (the microcontroller pretends to be the memory chip; see [ID-modes.md](ID-modes.md)). Only once that firmware works reliably | fitted | |
+| **D1** 1N5817 (Schottky), or SS14 (SMA) on the SMD pads | sits in the phone's 5 V line. I *think* it's needed: many small boards (the RP2040-Zero included) tie their 5 V pin directly to USB VBUS, and I couldn't find out whether the phone protects its 5 V output (pin 7) against power coming back in. With D1, USB should be able to stay plugged in while the cover is on the phone (flashing, serial debug). Costs ~0.3–0.45 V, so the breadboard gets ~4.6 V instead of 5 V; fine for the microcontroller, which makes its own 3.3 V | fitted, band (K) toward the header | keep it unless you know pin 7 is protected |
+| **R1** 6.2 kΩ (THT or 1206) | ID resistor for **DEV mode** (development ID, no memory chip; the phone should detect the cover without any firmware). **Use while developing** | fitted | |
+| **R2** 10 kΩ (THT or 1206) | ID resistor for **CHIP mode** (the microcontroller pretends to be the memory chip; see [ID-modes.md](ID-modes.md)). Only once that firmware works reliably | fitted | |
 | **JP2** DEV / CHIP (3-pad solder jumper, top right) | connects ID to R1 or R2 | **DEV** (left + middle bridged) | to CHIP: cut the left bridge, check with a multimeter, bridge middle + right with solder. **Never bridge all three** (≈ 3.8 kΩ, not a valid ID: I expect the phone not to recognise it and switch 5 V off) |
 | **JP1** INT-GND (solder jumper) | ties INT to GND, so the phone sees the cover as attached | **bridged** | only if the MCU should drive INT itself later (as far as I understand, symbiosis doesn't support cover interrupts yet; its README lists proper interrupt handling as missing). Then cut it and drive INT open-drain (pull low, never high) |
 | **JP4** (solder jumper under "5V MEAS") + **J3** (2-pin header) | J3 is a measuring point in the 5 V line; JP4 bridges it so 5 V works without anything on J3 | JP4 **bridged**, J3 empty | to measure what the RP2040 and modules draw (limit 1 A): cut JP4 once, put a multimeter (current range) across J3. **From then on J3 needs a jumper cap or Dupont wire** for normal use, or re-bridge JP4 with solder |
@@ -95,7 +97,7 @@ Firmware should always serve both 0x50 and its own address (planned 0x42); then 
 - Printed: [model/ctohm-dev.stl](model/ctohm-dev.stl) (frame) + [model/ctohm-bump.stl](model/ctohm-bump.stl) (camera bump)
 - Contact board: order with 0.6 mm, ENIG, vias tented (Gerbers: [pcb/contact/dev-toh-contact-gerbers.zip](pcb/contact/dev-toh-contact-gerbers.zip))
 - Breakout board: order with defaults, 1.6 mm, HASL ([pcb/breakout/dev-toh-breakout-gerbers.zip](pcb/breakout/dev-toh-breakout-gerbers.zip))
-- For the breakout: 1N5817, 6.2 kΩ and 10 kΩ (1/4 W, THT), 1×6 and 1×2 male header, jumper cap or female–female Dupont wire (only after cutting JP4)
+- For the breakout: 1N5817 (or SS14, SMA), 6.2 kΩ and 10 kΩ (1/4 W THT, or 1206/0805 SMD), 1×6 and 1×2 male header, jumper cap or female–female Dupont wire (only after cutting JP4)
 - 6 thin wires (28 AWG silicone works), 170-hole mini breadboard (self-adhesive, fits on the back), RP2040-Zero, CA glue or thin double-sided tape for the contact board, multimeter
 
 ## Printing
@@ -108,7 +110,7 @@ Firmware should always serve both 0x50 and its own address (planned 0x42); then 
 ## Assembly
 
 1. **Contact board** into the indent, gold pads toward the phone, square pad 1 next to the slot side. Glue it at the edges. It must sit flush; if pins don't make contact later, shim it from behind (a layer of tape)
-2. **Breakout:** D1 (band toward the header), R1 6.2 kΩ, R2 10 kΩ, 6-pin header (pins down). Leave the jumpers as shipped (DEV, INT-GND bridged, JP4 bridged, NO USB open)
+2. **Breakout:** D1 (band toward the header), R1 6.2 kΩ, R2 10 kΩ (through-hole or SMD, one per position), 6-pin header (pins down). Leave the jumpers as shipped (DEV, INT-GND bridged, JP4 bridged, NO USB open)
 3. **Wires:** six wires (not VIN) from the contact board's wire pads, out through the slot, into the breakout's top holes by label. Keep them short and flat; stick the breadboard on the outside of the cover near the slot
 4. **RP2040-Zero** on the breadboard: header `5V` → Zero `5V`, `GND` → `GND`, `SDA`/`SCL` → an I²C pair (e.g. GP0 = SDA, GP1 = SCL), optionally `INT`/`ID` to spare pins for monitoring only. No I²C pull-ups. 3.3 V modules: the Zero's 3V3 is weak, give radios their own 3.3 V regulator from `5V`
 
@@ -168,9 +170,9 @@ Then you should measure ~4.6 V between the header's `5V` and `GND`.
 ## Files
 
 - `model/ctohm-dev.step|stl`: cover frame (outside face down, ready for the slicer). `model/ctohm-bump.stl`: camera bump. `model/indent-outline.txt`: indent outline used for the PCB
-- [pcb/contact/](pcb/contact/), [pcb/breakout/](pcb/breakout/): `make_board.py` generates the KiCad board (edit the script, not the board), `README.md` with details, `dev-toh-*-gerbers.zip` = what was ordered
+- [pcb/contact/](pcb/contact/), [pcb/breakout/](pcb/breakout/): `make_board.py` generates the KiCad board (edit the script, not the board), `README.md` with details, `dev-toh-*-gerbers.zip` = current design (breakout: v3; the ordered v2 is `dev-toh-breakout-v2-gerbers-ordered.zip`)
 - [ID-modes.md](ID-modes.md): DEV vs CHIP mode in detail
-- `renders/`: `dev-cover.png` (model + slot), `pcb-check.png` (contact board in the cover), `breakout.png`, `clips-compare.png` (Jolla's clips vs cTOH-M's), `measure-cover-pads.png` (measurements on a real Inari Blue)
+- `renders/`: `dev-cover.png` (model + slot), `pcb-check.png` (contact board in the cover), `breakout.png` (with through-hole parts), `breakout-bare.png` (bare board, shows the SMD pads), `clips-compare.png` (Jolla's clips vs cTOH-M's), `measure-cover-pads.png` (measurements on a real Inari Blue)
 - `scripts/`: FreeCAD/Blender/Python scripts for the models and images
 
 ## Rebuilding

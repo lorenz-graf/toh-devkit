@@ -7,6 +7,9 @@
 # 5 V line, with JP4 (bridged solder jumper) in parallel so 5 V works out of the box; to measure, cut JP4 once and
 # use J3 (jumper cap / Dupont bridge for normal use, ammeter to measure the draw). JP3: D1 bypass (open; bridge only
 # when the RP2040 is NOT on USB, gives modules the full 5 V).
+# v3: every THT part has an SMD footprint in parallel (D1S SMA, e.g. SS14 (standard SMA pads: the hand-solder ones
+# overlap D1's holes and leave no room for the band); R1S/R2S 1206, 0805 also fits by hand),
+# sitting between the THT holes under the THT body. Fit either the THT part or the SMD part.
 # Run: python3 make_board.py   (KiCad 10 pcbnew module). Coordinates in mm, board origin = top-left at (100, 100).
 import pcbnew, json
 from pcbnew import FromMM as mm, ToMM, VECTOR2I
@@ -58,6 +61,34 @@ jh = place("Connector_PinHeader_2.54mm", "PinHeader_1x06_P2.54mm_Vertical", "J2"
 d1 = place("Diode_THT", "D_DO-41_SOD81_P10.16mm_Horizontal", "D1", 3.5, 14.16, "up")
 r1 = place("Resistor_THT", "R_Axial_DIN0207_L6.3mm_D2.5mm_P10.16mm_Horizontal", "R1", 24.4, 4.0, "down")   # 6.2k, DEV mode
 r2 = place("Resistor_THT", "R_Axial_DIN0207_L6.3mm_D2.5mm_P10.16mm_Horizontal", "R2", 27.8, 4.0, "down")   # 10k, CHIP mode
+# SMD alternatives, centred between the THT holes (same nets, same orientation: D1S cathode toward the header)
+YC = 14.16 - 5.08
+d1s = place("Diode_SMD", "D_SMA", "D1S", 3.5, YC, "up")
+r1s = place("Resistor_SMD", "R_1206_3216Metric_Pad1.30x1.75mm_HandSolder", "R1S", 24.4, YC, "down")
+r2s = place("Resistor_SMD", "R_1206_3216Metric_Pad1.30x1.75mm_HandSolder", "R2S", 27.8, YC, "down")
+for fp in (d1s, r1s, r2s):              # the THT outline (with the diode band) is the silkscreen for both
+    gi = fp.GraphicalItems(); items = [g for g in gi]   # keep the proxy alive while iterating (SWIG)
+    for g in items:
+        # no courtyard (overlapping D1/R1/R2 is intended), no own silk. Moved to F.Fab instead of removed:
+        # Remove() + SWIG ownership breaks the pcbnew bindings later in the script
+        if g.GetLayer() in (pcbnew.F_CrtYd, pcbnew.F_SilkS): g.SetLayer(pcbnew.F_Fab)
+# D1's silk body + band would sit on D1S's pads (and be clipped away): replace it by two side lines and a band
+# beside the pads (cathode end, toward the header), so the polarity stays visible with either part fitted
+gi = d1.GraphicalItems()
+for g in [g for g in gi]:
+    if g.GetLayer() == pcbnew.F_SilkS and g.GetClass() == "PCB_SHAPE" and g.GetBoundingBox().Intersects(d1s.GetBoundingBox()):
+        g.SetLayer(pcbnew.F_Fab)
+def silk_line(x1, y1, x2, y2, w=0.15):
+    l = pcbnew.PCB_SHAPE(b); l.SetShape(pcbnew.SHAPE_T_SEGMENT); l.SetLayer(pcbnew.F_SilkS)
+    l.SetStart(P(x1, y1)); l.SetEnd(P(x2, y2)); l.SetWidth(mm(w)); b.Add(l)
+padhalf = ToMM(pad(d1s, 1).GetBoundingBox().GetWidth()) / 2 + 0.25
+k_bot = ToMM(pad(d1s, 1).GetBoundingBox().GetBottom()) - 100           # lower edge of D1S's cathode pad
+k_tht = ToMM(pad(d1, 1).GetBoundingBox().GetTop()) - 100               # upper edge of D1's cathode pad
+band_y = (k_bot + k_tht) / 2                                            # band in the gap between the two
+a_top = ToMM(pad(d1, 2).GetBoundingBox().GetBottom()) - 100 + 0.3     # below D1's anode pad
+for sx in (-1, 1):
+    silk_line(3.5 + sx * padhalf, a_top, 3.5 + sx * padhalf, band_y)
+silk_line(3.5 - padhalf, band_y, 3.5 + padhalf, band_y, min(0.5, k_tht - k_bot - 0.35))   # band = cathode side
 j2 = place("Jumper", "SolderJumper-3_P1.3mm_Bridged12_Pad1.0x1.5mm", "JP2", 26.1, 1.6, "right")     # 1-2 bridged = DEV mode
 sj = place("Jumper", "SolderJumper-2_P1.3mm_Bridged_Pad1.0x1.5mm", "JP1", X["INT"], 18.2, "down")
 jm = place("Connector_PinHeader_2.54mm", "PinHeader_1x02_P2.54mm_Vertical", "J3", 3.5, 18.4, "right")   # 5V MEAS
@@ -74,6 +105,9 @@ pad(r1, 1).SetNet(net["ID_A"]); pad(r1, 2).SetNet(net["GND"])
 pad(r2, 1).SetNet(net["ID_B"]); pad(r2, 2).SetNet(net["GND"])
 pad(j2, 1).SetNet(net["ID_A"]); pad(j2, 2).SetNet(net["ID"]); pad(j2, 3).SetNet(net["ID_B"])
 pad(sj, 1).SetNet(net["INT"]); pad(sj, 2).SetNet(net["GND"])
+pad(d1s, 2).SetNet(net["5V_PHONE"]); pad(d1s, 1).SetNet(net["5V_D"])
+pad(r1s, 1).SetNet(net["ID_A"]); pad(r1s, 2).SetNet(net["GND"])
+pad(r2s, 1).SetNet(net["ID_B"]); pad(r2s, 2).SetNet(net["GND"])
 
 def track(layer, pts, n):
     for a, c in zip(pts, pts[1:]):
@@ -104,6 +138,9 @@ track(pcbnew.F_Cu, [j_1, r_a], "ID_A")
 track(pcbnew.F_Cu, [j_3, r2_a], "ID_B")
 track(pcbnew.F_Cu, [r_b, (r_b[0], BUS_Y), (X["GND"], BUS_Y), (X["GND"], Y_HDR)], "GND")   # R1 -> GND bus -> header GND
 track(pcbnew.F_Cu, [r2_b, (r2_b[0], BUS_Y), (r_b[0], BUS_Y)], "GND")                      # R2 -> GND bus
+for tht, smd, n1, n2 in [(d1, d1s, "5V_D", "5V_PHONE"), (r1, r1s, "ID_A", "GND"), (r2, r2s, "ID_B", "GND")]:
+    track(pcbnew.F_Cu, [at(tht, 1), at(smd, 1)], n1)                      # SMD pads in parallel to the THT pads
+    track(pcbnew.F_Cu, [at(tht, 2), at(smd, 2)], n2)
 s1, s2 = at(sj, 1), at(sj, 2)
 track(pcbnew.F_Cu, [(X["INT"], Y_HDR), s1], "INT")
 track(pcbnew.F_Cu, [s2, (s2[0], BUS_Y)], "GND")
@@ -114,12 +151,12 @@ def text(s, x, y, size=0.8, rot=0):
 for s in COLS:
     text(s, X[s], 5.6, rot=90)                 # under the wire holes
     text(s, X[s], 11.5, rot=90)                # above the header pins
-text("1N5817", 1.1, 9.1, 0.8, 90)
+text("1N5817/SS14", 1.1, 8.4, 0.8, 90)
 text("DEV 6.2k", 22.35, 9.1, 0.8, 90)
 text("CHIP 10k", 30.05, 9.1, 0.8, 90)
 text("DEV", 22.9, 1.6, 0.7); text("CHIP", 29.5, 1.6, 0.7)
 text("INT-GND", 14.4, 18.1, 0.7)
-text("TOH breakout v2", 14.35, 8.3, 0.8)
+text("TOH breakout v3", 14.35, 8.3, 0.8)
 text("5V MEAS", 9.3, 21.8, 0.7)
 text("NO USB", 6.5, 5.6, 0.7, 90)
 
