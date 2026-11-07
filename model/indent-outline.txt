@@ -1,0 +1,9 @@
+# cTOH-M contact-board indent outline (u, v) in mm, phone coords (u from right edge, v from bottom edge, seen from behind)
+# depth 0.6 mm (floor at 0.8 mm plate). PCB outline = this minus ~0.2 mm clearance. Corners, in order.
+36.40 14.50
+36.40 7.35
+21.60 7.35
+21.60 3.65
+8.90 3.65
+8.90 14.50
+36.40 14.50

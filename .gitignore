@@ -1,0 +1,11 @@
+# Python
+__pycache__/
+# KiCad: local UI state, backups, caches
+*.kicad_prl
+*-backups/
+fp-info-cache
+# generated: DRC reports and loose fab files (the ordered Gerber zips are kept)
+drc.rpt
+pcb/*/fab/
+# private working notes (decisions log, measurements, session handoff)
+STATUS.md
