@@ -26,7 +26,7 @@ TOH spec (pins, ID resistors, memory chip format): https://docs.sailfishos.org/D
 ```
 
 - **Cover** (`model/`): the community **cTOH-M** frame from Jolla's [toh-designs](https://github.com/sailfishos/toh-designs) repo, laid flat for printing, plus the wire slot. The frame already has an indent for a contact board; nothing else was changed
-- **Contact board:** 0.6 mm thick, sits flush in the indent. 7 gold pads touch the phone's pins; vias carry the signals to wire pads on the other side, right above the slot
+- **Contact board:** 0.6 mm thick, meant to sit flush in the indent. 7 gold pads should touch the phone's pins; vias carry the signals to wire pads on the other side, right above the slot
 - **Breakout board:** takes the wires, sets the cover's ID, ties INT to GND, protects the phone from USB backfeed, and gives the breadboard a clean 6-pin header
 
 ## The phone's TOH connector (from the spec)
@@ -43,7 +43,7 @@ TOH spec (pins, ID resistors, memory chip format): https://docs.sailfishos.org/D
 | 6 | SDA | I²C data, 3.3 V | same |
 | 7 | 5V OUT | the cover's only power supply, 5 V, max 1 A, switched by the phone | |
 
-What happens on attach (symbiosis): INT goes low → the phone switches 5 V on → reads the ID resistor through an ADC → with 6.2 kΩ (development ID) it uses vendor/product `0000/0000` and keeps 5 V on; with 10 kΩ it waits 100 ms and reads a memory chip at I²C 0x50. INT going high again counts as "cover removed".
+What happens on attach, as I understand the spec and symbiosis (not verified on hardware yet): INT goes low → the phone switches 5 V on → reads the ID resistor through an ADC → with 6.2 kΩ (development ID) it uses vendor/product `0000/0000` and keeps 5 V on; with 10 kΩ it waits 100 ms and reads a memory chip at I²C 0x50. INT going high again counts as "cover removed".
 
 ## Contact board ([pcb/contact/](pcb/contact/))
 
@@ -56,24 +56,26 @@ What happens on attach (symbiosis): INT goes low → the phone switches 5 V on �
   top row:     5V   SCL   ID   VIN
   bottom row:    GND   INT   SDA
   ```
-- **Power lines** (VIN, GND, 5V) are 0.5 mm wide with 1.2 mm wire pads: about 1 A with only a few degrees of warming. The board is meant for every cover project, including battery covers that charge the phone through VIN. Signals are 0.2 mm
+- **Power lines** (VIN, GND, 5V) are 0.5 mm wide with 1.2 mm wire pads: on paper about 1 A with only a few degrees of warming (calculated, not tested). The board is meant for every cover project, including battery covers that charge the phone through VIN. Signals are 0.2 mm
 - **On this dev cover leave the VIN pad unconnected**
 
 ## Breakout board ([pcb/breakout/](pcb/breakout/))
 
 ![Breakout board](renders/breakout.png)
 
+Most options are **solder jumpers**: small pads next to each other on the board. "Bridged" ones are joined by a thin copper link: to open one, cut that link with a sharp knife and check with a multimeter that it's really open. To close a jumper, put a blob of solder across the pads (remove it with solder wick to open it again). All jumpers come in the state you need to get started, so you only touch them for a specific feature.
+
 1.6 mm, HASL, 31 × 23.6 mm. Top row: 6 holes for the wires from the cover (`5V GND SDA SCL INT ID`, no VIN on purpose). Bottom row: 6-pin header into the breadboard, same order.
 
 | Part | Does | As shipped / fitted | Change it when |
 |---|---|---|---|
-| **D1** 1N5817 (Schottky) | sits in the phone's 5 V line. The RP2040-Zero's 5 V pin is tied directly to its USB VBUS, so without D1 a USB cable would push 5 V back into the phone. With D1 you can keep USB plugged in while the cover is on the phone (flashing, serial debug). Costs ~0.3–0.45 V (modules get ~4.6 V) | fitted, band (K) toward the header | never remove |
-| **R1** 6.2 kΩ | ID resistor for **DEV mode** (development ID, no memory chip; works without any firmware) | fitted | |
-| **R2** 10 kΩ | ID resistor for **CHIP mode** (the RP2040 emulates the memory chip; see [ID-modes.md](ID-modes.md)) | fitted | |
-| **JP2** DEV / CHIP (3-pad solder jumper, top right) | connects ID to R1 or R2 | **DEV** (left + middle bridged) | to CHIP: cut the left bridge, check with a multimeter, bridge middle + right with solder. **Never bridge all three** (≈ 3.8 kΩ: the phone doesn't recognise it and switches 5 V off) |
-| **JP1** INT-GND (solder jumper) | ties INT to GND, so the phone sees the cover as attached | **bridged** | only if the MCU should drive INT itself later (symbiosis doesn't support cover interrupts yet). Then cut it and drive INT open-drain (pull low, never high) |
+| **D1** 1N5817 (Schottky) | sits in the phone's 5 V line. I *think* it's needed: many small boards (the RP2040-Zero included) tie their 5 V pin directly to USB VBUS, and I couldn't find out whether the phone protects its 5 V output (pin 7) against power coming back in. With D1, USB should be able to stay plugged in while the cover is on the phone (flashing, serial debug). Costs ~0.3–0.45 V, so the breadboard gets ~4.6 V instead of 5 V; fine for the microcontroller, which makes its own 3.3 V | fitted, band (K) toward the header | keep it unless you know pin 7 is protected |
+| **R1** 6.2 kΩ | ID resistor for **DEV mode** (development ID, no memory chip; the phone should detect the cover without any firmware). **Use while developing** | fitted | |
+| **R2** 10 kΩ | ID resistor for **CHIP mode** (the microcontroller pretends to be the memory chip; see [ID-modes.md](ID-modes.md)). Only once that firmware works reliably | fitted | |
+| **JP2** DEV / CHIP (3-pad solder jumper, top right) | connects ID to R1 or R2 | **DEV** (left + middle bridged) | to CHIP: cut the left bridge, check with a multimeter, bridge middle + right with solder. **Never bridge all three** (≈ 3.8 kΩ, not a valid ID: I expect the phone not to recognise it and switch 5 V off) |
+| **JP1** INT-GND (solder jumper) | ties INT to GND, so the phone sees the cover as attached | **bridged** | only if the MCU should drive INT itself later (as far as I understand, symbiosis doesn't support cover interrupts yet; its README lists proper interrupt handling as missing). Then cut it and drive INT open-drain (pull low, never high) |
 | **JP4** (solder jumper under "5V MEAS") + **J3** (2-pin header) | J3 is a measuring point in the 5 V line; JP4 bridges it so 5 V works without anything on J3 | JP4 **bridged**, J3 empty | to measure what the RP2040 and modules draw (limit 1 A): cut JP4 once, put a multimeter (current range) across J3. **From then on J3 needs a jumper cap or Dupont wire** for normal use, or re-bridge JP4 with solder |
-| **JP3** "NO USB" (solder jumper next to D1) | bridges D1, so modules get the full 5 V (e.g. the RDM630 RFID reader wants 4.75–5.25 V) | **open** | bridge only while the RP2040 is **not** on USB; open it again before plugging USB in |
+| **JP3** "NO USB" (solder jumper next to D1) | bridges D1, so modules get the full 5 V instead of ~4.6 V (e.g. the RDM630 RFID reader is specified for 4.75–5.25 V) | **open** | bridge only while the microcontroller is **not** on USB (bridged, nothing stops USB power from flowing back into the phone); open it again before plugging USB in |
 
 Header out (`J2`, left to right): `5V` (after D1) · `GND` · `SDA` · `SCL` · `INT` · `ID`.
 
@@ -83,7 +85,7 @@ Header out (`J2`, left to right): `5V` (after D1) · `GND` · `SDA` · `SCL` · 
 |---|---|---|
 | ID resistor (JP2) | 6.2 kΩ | 10 kΩ |
 | Phone sees | vendor/product `0000/0000`, no name | whatever the RP2040's emulated memory chip says (planned `0000/0001`, name, product link) |
-| Needs firmware to be detected | no | **yes** (answer at 0x50 within 100 ms, payload with `PO` = true or the phone switches 5 V off again) |
+| Firmware needed for detection (expected, not tested) | no | **yes** (answer at 0x50 within 100 ms, payload with `PO` = true, otherwise I expect the phone to switch 5 V off again) |
 | Use for | developing, flashing, anything unstable | the real-product path, the "install the companion app" link |
 
 Firmware should always serve both 0x50 and its own address (planned 0x42); then switching modes is only the jumper. Details, checks and failure symptoms: **[ID-modes.md](ID-modes.md)**.
@@ -110,9 +112,9 @@ Firmware should always serve both 0x50 and its own address (planned 0x42); then 
 3. **Wires:** six wires (not VIN) from the contact board's wire pads, out through the slot, into the breakout's top holes by label. Keep them short and flat; stick the breadboard on the outside of the cover near the slot
 4. **RP2040-Zero** on the breadboard: header `5V` → Zero `5V`, `GND` → `GND`, `SDA`/`SCL` → an I²C pair (e.g. GP0 = SDA, GP1 = SCL), optionally `INT`/`ID` to spare pins for monitoring only. No I²C pull-ups. 3.3 V modules: the Zero's 3V3 is weak, give radios their own 3.3 V regulator from `5V`
 
-## First test (no firmware needed)
+## First test (planned; no firmware needed)
 
-Cover on the phone, then over SSH (developer mode, no root):
+Once it's built: cover on the phone, then over SSH (developer mode, no root):
 
 ```
 cat /sys/class/yft_pogo_pin/*adc_value      # DEV: 600–799, CHIP: 800–999, nothing attached: ~1820
@@ -122,7 +124,7 @@ gdbus call --system --dest org.sailfishos.tohd1 --object-path /org/sailfishos/to
   --method org.freedesktop.DBus.ObjectManager.GetManagedObjects   # DEV: VendorId 0, ProductId 0
 ```
 
-Then measure ~4.6 V between the header's `5V` and `GND`.
+Then you should measure ~4.6 V between the header's `5V` and `GND`.
 
 ## If something goes wrong: check first
 
@@ -138,7 +140,7 @@ Then measure ~4.6 V between the header's `5V` and `GND`.
 
 - Accessing the TOH I²C bus needs root or a program allowed by a config file: symbiosis reads `*.yaml` from `/usr/share/tohd-1/tohs/<vid>/<pid>/` (DEV: `0000/0000/`, CHIP: `0000/0001/`). Planned config (one RPM installs it into both): `access: i2c-dev` for the polling program, `devices:` listing 0x42 and 0x50 (every address used must be listed), and a `user-unit` that starts the polling service on attach and stops it on detach. Format: symbiosis `doc/configuration.md`
 - The program then borrows the bus over D-Bus (`org.sailfishos.tohd1`, `BorrowI2cDevAccess`) and polls the RP2040 (e.g. every 100–200 ms: status register first, data only when something is new)
-- Sailfish can't prompt to install a companion app on attach; in CHIP mode the product link at least ends up on D-Bus (`ProductWebsite`) for a helper to show
+- As far as I found, Sailfish has no way to prompt for a companion app on attach; in CHIP mode the product link at least ends up on D-Bus (`ProductWebsite`) for a helper to show
 
 ## Next steps
 
@@ -150,14 +152,14 @@ Then measure ~4.6 V between the header's `5V` and `GND`.
 ## Design notes (why it is like this)
 
 - **No pogo pins, no screw:** the phone has the springs; Jolla's own covers use a small flat pad board held by the cover. Here it sits in the cTOH-M frame's indent
-- **Measured on a real phone and a Jolla Inari Blue cover:** pin tips 0.9 mm, sticking out ~0.5 mm; Inari pads 2.3 mm, flush with the cover's inner surface, pitch 2.90 mm. Jolla's cover model plus the pin positions from the official back drawing match the real Inari Blue to ~0.15 mm (checked against the two clips next to the connector, `renders/measure-cover-pads.png`), so the pocket and pads come straight from the model
+- **Positions:** taken from Jolla's cover model and the pin positions in the official back drawing, then checked by hand with a cheap caliper against my phone and my Inari Blue cover: pin tips ~0.9 mm, sticking out ~0.5 mm; the Inari's pads ~2.3 mm at 2.90 mm pitch, flush with its inner surface. Measured from the two clips next to the connector, the model and my Inari seemed to agree within ~0.15 mm (`renders/measure-cover-pads.png`). Honestly, I YOLO'd it: these are my own measurements and might be off; the first print and the real boards will show
 
   ![Measurements on a real Inari Blue cover](renders/measure-cover-pads.png)
 
-- **0.6 mm board in a 0.6 mm indent** gives flush pads like the Inari; the springs then see the same height as with Jolla's covers
+- **0.6 mm board in a 0.6 mm indent** should give flush pads, as I measured on my Inari; the springs should then see about the same height as with Jolla's covers
 - **Wires out the back through a slot** under the board's arm, so the solder blobs sit in the slot instead of lifting the board
-- **Polling instead of INT:** symbiosis only uses INT for attach/detach today
-- **1N5817 kept** even though it costs ~0.4 V: the phone's protection on pin 7 is undocumented and the RP2040-Zero has none
+- **Polling instead of INT:** as far as I understand, symbiosis only uses INT for attach/detach today
+- **1N5817 kept** even though it costs ~0.4 V: I couldn't find out whether the phone protects pin 7, and the RP2040-Zero has no diode of its own. If someone knows pin 7 is protected, it could go
 
 ### Coordinates used in the scripts
 

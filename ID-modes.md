@@ -2,7 +2,7 @@
 
 The dev cover must support **both** ways a cover can identify itself to the phone. The hardware is the same for both; only the ID mode jumper JP2 on the breakout board ([pcb/breakout/](pcb/breakout/)) differs (DEV = 6.2 kΩ, CHIP = 10 kΩ). Firmware and phone package support both at the same time, so switching is a resistor swap.
 
-Overview of the whole cover: [README.md](README.md). Spec (ADC ranges, payload fields, timing): https://docs.sailfishos.org/Develop/Hardware/JP2601-TOH/
+**Not tested yet:** this describes how I expect both modes to work, based on Jolla's spec and the symbiosis docs/code; nothing here has been tried on a phone. Overview of the whole cover: [README.md](README.md). Spec (ADC ranges, payload fields, timing): https://docs.sailfishos.org/Develop/Hardware/JP2601-TOH/
 
 ## Summary
 
