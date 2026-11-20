@@ -1,0 +1,13 @@
+# TOH DevKit, DEV mode (6.2 kOhm ID -> vendor/product 0000/0000).
+# Installed by the toh-devkit RPM to /usr/share/tohd-1/tohs/0000/0000/devkit.yaml (symbiosis reads it when the
+# cover is attached). Format: github.com/sailfishos/symbiosis doc/configuration.md
+override:
+  product-name: TOH DevKit
+access:
+  i2c-dev:
+    - /usr/bin/toh-i2c
+    - /usr/libexec/toh-devkit/toh-devkitd
+devices:
+  # every address used on the bus must be listed (I3C wrapper driver); no name:, so no kernel driver binds
+  - address: 0x42   # RP2040 firmware (firmware/devkit-fw)
+  - address: 0x50   # memory-chip image (CHIP mode, later)

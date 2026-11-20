@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+X-Nemo-Application-Type=silica-qt5
+Icon=toh-devkit
+Exec=sailfish-qml toh-devkit
+Name=TOH DevKit
+
+[X-Sailjail]
+# talks to its own helper service on the session bus; no sandbox profile for that yet
+Sandboxing=Disabled

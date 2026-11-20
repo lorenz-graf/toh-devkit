@@ -1,0 +1,3 @@
+[D-BUS Service]
+Name=io.github.lorenz_graf.TohDevkit
+Exec=/usr/libexec/toh-devkit/toh-devkitd
