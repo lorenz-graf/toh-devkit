@@ -1,5 +1,7 @@
 # Breakout board for the dev cover (v3)
 
+Sits on the breadboard. **Cover wires go into the round-hole row only; 5V for anything on the breadboard comes only from the header** (the wire row's 5V is before D1). GND, SDA, SCL, INT, ID are the same on both rows.
+
 Sits on the breadboard. The 6 wires from the contact board ([../contact/](../contact/), via the cover's wire slot) are soldered into the top row of holes; a 6-pin 2.54 mm male header on the bottom row plugs into the breadboard. Render: `../../renders/breakout.png`.
 
 | Header pin | Signal | Note |

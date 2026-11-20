@@ -9,3 +9,7 @@ drc.rpt
 pcb/*/fab/
 # private working notes (decisions log, measurements, session handoff)
 STATUS.md
+# photo originals (may contain personal data); redacted, approved copies go one level up into images/
+images/raw/
+# build output (firmware .uf2, phone binaries)
+build/

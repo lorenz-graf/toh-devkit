@@ -3,7 +3,7 @@
 Sits in the contact-board indent of the cTOH-M dev cover ([../../model/](../../model/)). Check image: [pcb-check.png](../../renders/pcb-check.png).
 
 - **Bottom (B.Cu, faces the phone):** 7 contact pads, 2.3 mm (like Jolla's Inari Blue), at the pin positions. Flush with the cover's inner surface because the board is as thick as the indent is deep (0.6 mm)
-- **Top (F.Cu, faces the cover floor):** traces to 7 wire pads (1 × 1 mm) that sit over the cover's 9 × 3 mm wire slot. Solder the wires there; they leave through the slot. Labels on the top are readable from outside through the slot
+- **Top (F.Cu, faces the cover floor):** traces to 7 wire pads (1 × 1 mm) that sit over the cover's 9 × 3 mm wire slot. Solder the wires there; they leave through the slot. The printed labels sit just above and below the slot, so once the board is glued in they're hidden under the plastic: use [wire-pads-outside.png](../../renders/wire-pads-outside.png) (pads as seen from outside)
 - **Vias** (0.3 mm, tented) connect the two sides
 - **v2: made for all cover projects, 1 A on the power lines.** VIN (pin 1), GND (pin 2) and 5V (pin 7) are 0.5 mm wide (IPC-2221: ~1 A with a few °C rise; signals stay 0.2 mm) and get 1.2 mm wire pads for thicker wire. VIN and 5V run on the phone side through the free upper strip, each with its own via next to its wire pad. So the same board serves the dev cover (power from the phone) and battery covers like the chonk (up to 1 A into the phone through pin 1). Outline and contact pads are unchanged from v1
 - Outline: indent minus 0.2 mm (L-shape, ≈ 27.1 × 10.45 mm)

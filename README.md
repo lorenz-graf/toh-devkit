@@ -3,11 +3,11 @@
 Breadboard dev cover for The Other Half (TOH) connector of the Jolla Phone 2026.
 
 > [!WARNING]
-> **Work in progress, not tested yet.** Neither the PCBs nor the printed parts (STLs) have been built or tried on a phone. The designs are based on Jolla's models, the official spec and measurements, but expect mistakes. Use at your own risk, and check fit and voltages with a multimeter before putting anything on your phone.
+> **Work in progress, only partly tested.** One unit is built: the phone detects it in DEV mode (6.2 kΩ ID) and switches 5 V on. I²C (SDA/SCL), CHIP mode, the RP2040 and modules are not tested yet. The designs are based on Jolla's models, the official spec and measurements, but expect mistakes. Use at your own risk, and check fit and voltages with a multimeter before putting anything on your phone.
 
 A 3D-printed back cover ("The Other Half", TOH) for the Jolla Phone 2026 (`jp2601`) that brings the phone's 7 TOH contacts out to a mini breadboard on the back of the phone, for prototyping covers with a microcontroller (RP2040-Zero) and plug-in modules (IR, sub-GHz, LoRa, RFID, …).
 
-**Status (2026-11):** cover model and both boards designed, boards ordered. Not yet printed or assembled, so nothing here is tested on hardware yet. Firmware (RP2040 I²C target) and the phone-side package are still to be written.
+**Status (2026-11-19):** first unit printed and assembled (contact board v2, breakout v2); the phone detects it in DEV mode (see First test). Firmware (RP2040 I²C target) and the phone-side package are still to be written.
 
 TOH spec (pins, ID resistors, memory chip format): https://docs.sailfishos.org/Develop/Hardware/JP2601-TOH/. Phone-side daemon: [symbiosis](https://github.com/sailfishos/symbiosis).
 
@@ -65,7 +65,15 @@ What happens on attach, as I understand the spec and symbiosis (not verified on 
 
 Most options are **solder jumpers**: small pads next to each other on the board. "Bridged" ones are joined by a thin copper link: to open one, cut that link with a sharp knife and check with a multimeter that it's really open. To close a jumper, put a blob of solder across the pads (remove it with solder wick to open it again). All jumpers come in the state you need to get started, so you only touch them for a specific feature.
 
-1.6 mm, HASL, 31 × 23.6 mm. Top row: 6 holes for the wires from the cover (`5V GND SDA SCL INT ID`, no VIN on purpose). Bottom row: 6-pin header into the breadboard, same order.
+1.6 mm, HASL, 31 × 23.6 mm. Wire row: 6 round holes for the wires from the cover (`5V GND SDA SCL INT ID`, no VIN on purpose). Header row: 6-pin header into the breadboard, same order.
+
+> [!IMPORTANT]
+> **Two rows, two jobs.**
+> - **Wires from the cover:** always into the row of round holes (the phone side). Never onto the header.
+> - **5V for the microcontroller and modules:** only from the **header** row (after the diode D1). The 5V in the wire row is the phone's 5 V *before* D1: taking power there skips the protection against USB power flowing back into the phone.
+> - **GND, SDA, SCL, INT, ID** are the same signal on both rows; either works.
+>
+> With only a multimeter attached, both 5V pins read the same (~5.0 V): almost no current flows, so D1 drops almost nothing. The drop (~0.2–0.4 V) shows up once something draws power.
 
 **Through-hole or SMD (v3):** D1, R1 and R2 each have SMD pads between their through-hole pads, wired in parallel. Fit **either** the through-hole part **or** the SMD part, whichever you have: an SMA Schottky diode (e.g. SS14, cathode band toward the header like the through-hole one) and 1206 resistors (0805 should fit too when hand-soldering). The SMD pads only show without the through-hole parts: [renders/breakout-bare.png](renders/breakout-bare.png). v3 is designed but not made yet; the boards I ordered are v2 (through-hole only, [Gerbers](pcb/breakout/dev-toh-breakout-v2-gerbers-ordered.zip)).
 
@@ -111,10 +119,10 @@ Firmware should always serve both 0x50 and its own address (planned 0x42); then 
 
 1. **Contact board** into the indent, gold pads toward the phone, square pad 1 next to the slot side. Glue it at the edges. It must sit flush; if pins don't make contact later, shim it from behind (a layer of tape)
 2. **Breakout:** D1 (band toward the header), R1 6.2 kΩ, R2 10 kΩ (through-hole or SMD, one per position), 6-pin header (pins down). Leave the jumpers as shipped (DEV, INT-GND bridged, JP4 bridged, NO USB open)
-3. **Wires:** six wires (not VIN) from the contact board's wire pads, out through the slot, into the breakout's top holes by label. Keep them short and flat; stick the breadboard on the outside of the cover near the slot
-4. **RP2040-Zero** on the breadboard: header `5V` → Zero `5V`, `GND` → `GND`, `SDA`/`SCL` → an I²C pair (e.g. GP0 = SDA, GP1 = SCL), optionally `INT`/`ID` to spare pins for monitoring only. No I²C pull-ups. 3.3 V modules: the Zero's 3V3 is weak, give radios their own 3.3 V regulator from `5V`
+3. **Wires:** six wires (not VIN) from the contact board's wire pads (wiring diagram: [renders/wiring.png](renders/wiring.png); pads alone, seen from outside: [renders/wire-pads-outside.png](renders/wire-pads-outside.png)), out through the slot, into the breakout's **wire row** (round holes) by label, never onto the header. Keep them short and flat; stick the breadboard on the outside of the cover near the slot
+4. **RP2040-Zero** on the breadboard: **header** `5V` → Zero `5V` (never the wire row's 5V, see the box under Breakout board), `GND` → `GND`, `SDA` → GP26, `SCL` → GP15 (any I²C pair works if the firmware matches; see [firmware/README.md](firmware/README.md)), optionally `INT`/`ID` to spare pins for monitoring only. No I²C pull-ups. 3.3 V modules: the Zero's 3V3 is weak, give radios their own 3.3 V regulator from `5V`
 
-## First test (planned; no firmware needed)
+## First test (no firmware needed)
 
 Once it's built: cover on the phone, then over SSH (developer mode, no root):
 
@@ -127,6 +135,8 @@ gdbus call --system --dest org.sailfishos.tohd1 --object-path /org/sailfishos/to
 ```
 
 Then you should measure ~4.6 V between the header's `5V` and `GND`.
+
+**Result on the first unit (2026-11-19, DEV mode):** `adc_value` 757, `int_state` 0, `5v_out_state` 1, D-Bus VendorId 0 / ProductId 0 with `LeavePowerOn` true. Voltage: 5.03 V at the header with nothing connected (D1 drops almost nothing without current), **4.79 V at the RP2040-Zero's 5V pin** once the Zero is connected (D1's drop shows under load). Before putting it on the phone, I checked with a multimeter (cover off, on the gold pads) that there's no short between 5V, GND, VIN and the I²C lines, and that INT–GND is closed.
 
 ## If something goes wrong: check first
 
@@ -146,7 +156,7 @@ Then you should measure ~4.6 V between the header's `5V` and `GND`.
 
 ## Next steps
 
-- Print, assemble, first test as above
+- ~~Print, assemble, first test~~ done (DEV mode detected)
 - RP2040 firmware: I²C target at 0x42 (register protocol with an "enter bootloader" command reserved), later the memory-chip image at 0x50
 - Phone package (RPM): config + polling service as above
 - Modules: IR first, then CC1101 (433 MHz), RDM630 (125 kHz RFID; 5 V UART, needs a divider to 3.3 V), SX1262 LoRa (own 3.3 V regulator)
