@@ -6,7 +6,7 @@
 
 Name:       toh-devkit
 Version:    %{tdk_version}
-Release:    3
+Release:    4
 Summary:    TOH DevKit: talk to the breadboard dev cover's microcontroller
 License:    BSD-3-Clause
 URL:        https://github.com/lorenz-graf/toh-devkit
@@ -38,9 +38,15 @@ for s in 86 108 128 172; do
 done
 
 %post
-# leftovers from the manual test install (2026-11-20), replaced by /usr/bin/toh-i2c
-rm -f /usr/local/bin/toh-i2c
+# A toh-devkitd still running from the previous version keeps its deleted binary, and symbiosis refuses deleted
+# executables (AccessDenied). Stop it; D-Bus activation starts the new one on the next call.
+p=$(pidof toh-devkitd) && kill $p || :
 # symbiosis reads the config on attach: take the cover off and put it back on after installing
+
+%preun
+if [ "$1" = 0 ]; then
+  p=$(pidof toh-devkitd) && kill $p || :
+fi
 
 %files
 /usr/bin/toh-i2c

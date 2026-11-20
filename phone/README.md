@@ -23,7 +23,7 @@ Needs Go, Python 3 with Pillow (app icon) and `rpmbuild` (Arch: `pacman -S rpm-t
 
 Copy the RPM to the phone and tap it in the file manager (developer mode on). Then **take the cover off and put it back on**: symbiosis reads the config only when a cover is attached. Remove it in Settings → Apps, or `devel-su pkcon remove toh-devkit`.
 
-After an update, close the app and stop the old service (`pkill -x toh-devkitd`), or reboot: symbiosis refuses a running program whose file was replaced (`AccessDenied`). The RPM doesn't do that by itself yet.
+An update stops the running service (symbiosis refuses a program whose file was replaced); the next call starts the new one.
 
 ## Use
 
