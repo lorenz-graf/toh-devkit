@@ -1,22 +1,40 @@
 # Phone side
 
-- `toh-i2c/`: command-line tool (Go, static aarch64 binary) that borrows the TOH I²C bus from symbiosis and runs one transfer. No root needed once it's allowed in the YAML. Build on the PC:
-  `cd toh-i2c && CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -trimpath -ldflags="-s -w" -o ../../build/toh-i2c .`
-- `devkit.yaml`: symbiosis config for DEV mode (`0000/0000`): allows `/usr/local/bin/toh-i2c` on the bus and lists 0x42 and 0x50.
+One RPM with everything the phone needs for the TOH DevKit:
 
-## Install (root, once)
+| Part | Installed as | What it does |
+|---|---|---|
+| `cmd/toh-i2c/` | `/usr/bin/toh-i2c` | command-line tool: one I²C transfer on the TOH bus, no root |
+| `cmd/toh-devkitd/` | `/usr/libexec/toh-devkit/toh-devkitd` | session D-Bus service `io.github.lorenz_graf.TohDevkit`, started on demand (`app/io.github.lorenz_graf.TohDevkit.service`), exits after 5 idle minutes |
+| `app/toh-devkit.qml` | app "TOH DevKit" (`sailfish-qml`) | GP14 LED switch + brightness, colour field + brightness for the RGB LED |
+| `devkit.yaml` | `/usr/share/tohd-1/tohs/0000/0000/devkit.yaml` | symbiosis config for DEV mode: allows the two programs on the bus, lists 0x42 and 0x50 |
 
-Copy `build/toh-i2c` and `phone/devkit.yaml` to `~` on the phone, then:
+`internal/tohbus/` is the shared code: borrow the bus from symbiosis (`BorrowI2cDevAccess` on the system D-Bus, returns an fd), one `I2C_RDWR` transfer, return the bus. The phone's Python has no D-Bus module, hence Go (static binaries, like Jolla's own `inari-blue-notifier-daemon`).
+
+## Build (PC)
+
+Needs Go, Python 3 with Pillow (app icon) and `rpmbuild` (Arch: `pacman -S rpm-tools`):
 
 ```
-devel-su sh -c 'install -m 755 ~defaultuser/toh-i2c /usr/local/bin/toh-i2c && mkdir -p /usr/share/tohd-1/tohs/0000/0000 && install -m 644 ~defaultuser/devkit.yaml /usr/share/tohd-1/tohs/0000/0000/devkit.yaml'
+./build-rpm.sh        # -> ../build/toh-devkit-<version>-<release>.aarch64.rpm
 ```
 
-Then take the cover off and put it back on (symbiosis reads the YAML on attach). Undo: `devel-su rm -r /usr/share/tohd-1/tohs/0000 /usr/local/bin/toh-i2c`
+## Install
+
+Copy the RPM to the phone and tap it in the file manager (developer mode on). Then **take the cover off and put it back on**: symbiosis reads the config only when a cover is attached. Remove it in Settings → Apps, or `devel-su pkcon remove toh-devkit`.
+
+After an update, close the app and stop the old service (`pkill -x toh-devkitd`), or reboot: symbiosis refuses a running program whose file was replaced (`AccessDenied`). The RPM doesn't do that by itself yet.
 
 ## Use
 
 ```
-toh-i2c 0x42 w 0x00 r 6        # 54 4f 48 44 00 01 = "TOHD", version 0.1
-toh-i2c 0x42 w 0x10 40 0 0     # LED red
+toh-i2c 0x42 w 0x00 r 6           # 54 4f 48 44 00 03 = "TOHD", version 0.3
+toh-i2c 0x42 w 0x10 0 40 0        # RGB LED green
+toh-i2c 0x42 w 0x14 255           # GP14 LED full
+toh-i2c -d 50 -n 5 0x42 w 0 r 6   # wait 50 ms after borrowing, up to 5 tries
+toh-i2c hold 30                   # keep the bus borrowed (5 V + pull-ups on) for 30 s, e.g. to measure SDA/SCL
+gdbus call --session --dest io.github.lorenz_graf.TohDevkit --object-path /io/github/lorenz_graf/TohDevkit \
+  --method io.github.lorenz_graf.TohDevkit.Info           # ('TOHD 0.3, up 7 s',)
 ```
+
+Register map: top of [../firmware/devkit-fw/devkit-fw.ino](../firmware/devkit-fw/devkit-fw.ino).

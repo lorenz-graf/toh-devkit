@@ -3,11 +3,16 @@
 Breadboard dev cover for The Other Half (TOH) connector of the Jolla Phone 2026.
 
 > [!WARNING]
-> **Work in progress, only partly tested.** One unit is built: the phone detects it in DEV mode (6.2 kΩ ID) and switches 5 V on. I²C (SDA/SCL), CHIP mode, the RP2040 and modules are not tested yet. The designs are based on Jolla's models, the official spec and measurements, but expect mistakes. Use at your own risk, and check fit and voltages with a multimeter before putting anything on your phone.
+> **Work in progress, only partly tested.** One unit is built and works in DEV mode (6.2 kΩ ID): the phone detects it, switches 5 V on, and an app on the phone switches two LEDs on the RP2040 over I²C. CHIP mode and modules are not tested yet, and the firmware has known issues (see [firmware/README.md](firmware/README.md)). The designs are based on Jolla's models, the official spec and measurements, but expect mistakes. Use at your own risk, and check fit and voltages with a multimeter before putting anything on your phone.
 
 A 3D-printed back cover ("The Other Half", TOH) for the Jolla Phone 2026 (`jp2601`) that brings the phone's 7 TOH contacts out to a mini breadboard on the back of the phone, for prototyping covers with a microcontroller (RP2040-Zero) and plug-in modules (IR, sub-GHz, LoRa, RFID, …).
 
-**Status (2026-11-19):** first unit printed and assembled (contact board v2, breakout v2); the phone detects it in DEV mode (see First test). Firmware (RP2040 I²C target) and the phone-side package are still to be written.
+**Status (2026-11-20):** first unit printed and assembled (contact board v2, breakout v2). The phone detects it in DEV mode (see First test), and the whole chain works: phone app → helper service → symbiosis → TOH bus → RP2040 → LEDs.
+
+| | | |
+|---|---|---|
+| <img src="media/devkit-hand-front.jpg" width="220" alt="TOH DevKit on the phone, both LEDs on"> | <img src="media/devkit-hand-angle.jpg" width="220" alt="TOH DevKit from an angle"> | <img src="media/app-screenshot.png" width="150" alt="TOH DevKit app"> |
+| on the phone: RGB LED and the green LED on GP14 | breakout board and the wires from the slot | the app: GP14 LED + colour field |
 
 TOH spec (pins, ID resistors, memory chip format): https://docs.sailfishos.org/Develop/Hardware/JP2601-TOH/. Phone-side daemon: [symbiosis](https://github.com/sailfishos/symbiosis).
 
@@ -148,17 +153,32 @@ Then you should measure ~4.6 V between the header's `5V` and `GND`.
 - **ADC reads ~400–600 / 5 V switches off right away:** all three JP2 pads bridged
 - **CHIP mode doesn't work:** [ID-modes.md](ID-modes.md) → "If CHIP mode doesn't work". First go back to DEV to separate firmware problems from contact problems
 
-## Phone side (to do)
+## Firmware ([firmware/](firmware/))
 
-- Accessing the TOH I²C bus needs root or a program allowed by a config file: symbiosis reads `*.yaml` from `/usr/share/tohd-1/tohs/<vid>/<pid>/` (DEV: `0000/0000/`, CHIP: `0000/0001/`). Planned config (one RPM installs it into both): `access: i2c-dev` for the polling program, `devices:` listing 0x42 and 0x50 (every address used must be listed), and a `user-unit` that starts the polling service on attach and stops it on detach. Format: symbiosis `doc/configuration.md`
-- The program then borrows the bus over D-Bus (`org.sailfishos.tohd1`, `BorrowI2cDevAccess`) and polls the RP2040 (e.g. every 100–200 ms: status register first, data only when something is new)
-- As far as I found, Sailfish has no way to prompt for a companion app on attach; in CHIP mode the product link at least ends up on D-Bus (`ProductWebsite`) for a helper to show
+RP2040-Zero as I²C target at **0x42** (register map in [firmware/devkit-fw/devkit-fw.ino](firmware/devkit-fw/devkit-fw.ino)): magic `TOHD`, version, uptime, the Zero's RGB LED, an LED on GP14. Build and flash: [firmware/README.md](firmware/README.md).
+
+**Lesson learned: the TOH bus doesn't support clock stretching.** With a logic analyzer I saw the phone keep clocking while the RP2040 held SCL low, so reads came back bit-shifted. That's expected on an I3C bus (old-style I²C devices must not stretch the clock there). The Arduino Wire library's interrupt handler needed ~9 µs to answer a read, which is far too slow, so the firmware lets core 1 poll the I²C block instead. Any microcontroller on a TOH has to have its answer ready at once.
+
+## Phone side ([phone/](phone/))
+
+One RPM (`phone/build-rpm.sh`; Go binaries cross-compiled, the app is plain QML):
+
+- **`toh-i2c`**: command-line tool for one I²C transfer without root, e.g. `toh-i2c 0x42 w 0x00 r 6` → `54 4f 48 44 00 03` ("TOHD", version 0.3). `toh-i2c hold 30` keeps the bus powered for 30 s (handy for measuring SDA/SCL)
+- **`toh-devkitd`**: small service on the session D-Bus (`io.github.lorenz_graf.TohDevkit`), started on demand; the app talks to it
+- **TOH DevKit app**: switch + brightness for the GP14 LED, colour field + brightness for the RGB LED
+- **symbiosis config** for DEV mode (`/usr/share/tohd-1/tohs/0000/0000/devkit.yaml`): allows those two programs on the bus and lists 0x42 and 0x50 (every address used must be listed)
+
+How it works: symbiosis lends the TOH bus over D-Bus (`org.sailfishos.tohd1`, `BorrowI2cDevAccess`) to programs whose path is listed in the cover's config. It reads the config when the cover is attached, so after installing, take the cover off and put it back on. Details: [phone/README.md](phone/README.md).
+
+As far as I found, Sailfish has no way to prompt for a companion app on attach; in CHIP mode the product link at least ends up on D-Bus (`ProductWebsite`) for a helper to show.
 
 ## Next steps
 
 - ~~Print, assemble, first test~~ done (DEV mode detected)
-- RP2040 firmware: I²C target at 0x42 (register protocol with an "enter bootloader" command reserved), later the memory-chip image at 0x50
-- Phone package (RPM): config + polling service as above
+- ~~RP2040 firmware + phone package, LEDs from an app~~ done
+- Firmware: fix the two known issues (garbage on the first read after a restart; lock-up holding SCL low after a garbled read)
+- RPM: restart a running `toh-devkitd` on update (symbiosis refuses a process whose program file was replaced)
+- CHIP mode: the memory-chip image at 0x50
 - Modules: IR first, then CC1101 (433 MHz), RDM630 (125 kHz RFID; 5 V UART, needs a divider to 3.3 V), SX1262 LoRa (own 3.3 V regulator)
 
 ## Design notes (why it is like this)
@@ -182,8 +202,11 @@ Then you should measure ~4.6 V between the header's `5V` and `GND`.
 - `model/ctohm-dev.step|stl`: cover frame (outside face down, ready for the slicer). `model/ctohm-bump.stl`: camera bump. `model/indent-outline.txt`: indent outline used for the PCB
 - [pcb/contact/](pcb/contact/), [pcb/breakout/](pcb/breakout/): `make_board.py` generates the KiCad board (edit the script, not the board), `README.md` with details, `dev-toh-*-gerbers.zip` = current design (breakout: v3; the ordered v2 is `dev-toh-breakout-v2-gerbers-ordered.zip`)
 - [ID-modes.md](ID-modes.md): DEV vs CHIP mode in detail
-- `renders/`: `dev-cover.png` (model + slot), `pcb-check.png` (contact board in the cover), `breakout.png` (with through-hole parts), `breakout-bare.png` (bare board, shows the SMD pads), `clips-compare.png` (Jolla's clips vs cTOH-M's), `measure-cover-pads.png` (measurements on a real Inari Blue)
+- `renders/`: `dev-cover.png` (model + slot), `pcb-check.png` (contact board in the cover), `breakout.png` (with through-hole parts), `breakout-bare.png` (bare board, shows the SMD pads), `clips-compare.png` (Jolla's clips vs cTOH-M's), `measure-cover-pads.png` (measurements on a real Inari Blue), `wiring.png` (cover slot → breakout), `wire-pads-outside.png` (wire pads seen through the slot)
 - `scripts/`: FreeCAD/Blender/Python scripts for the models and images
+- [firmware/](firmware/): RP2040-Zero firmware (Arduino)
+- [phone/](phone/): phone package (CLI tool, D-Bus service, app, symbiosis config, RPM build)
+- `media/`: photos and screenshots of the first build
 
 ## Rebuilding
 
