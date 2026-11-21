@@ -176,7 +176,7 @@ As far as I found, Sailfish has no way to prompt for a companion app on attach; 
 
 - ~~Print, assemble, first test~~ done (DEV mode detected)
 - ~~RP2040 firmware + phone package, LEDs from an app~~ done
-- Firmware: fix the two known issues (garbage on the first read after a restart; lock-up holding SCL low after a garbled read)
+- Firmware: garbage on the first read after a restart (the lock-up holding SCL low is fixed in v0.4)
 - RPM: restart a running `toh-devkitd` on update (symbiosis refuses a process whose program file was replaced)
 - CHIP mode: the memory-chip image at 0x50
 - Modules: IR first, then CC1101 (433 MHz), RDM630 (125 kHz RFID; 5 V UART, needs a divider to 3.3 V), SX1262 LoRa (own 3.3 V regulator)

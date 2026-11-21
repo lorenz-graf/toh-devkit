@@ -1,10 +1,12 @@
 # Firmware (RP2040-Zero)
 
-`devkit-fw/`: I²C target at **0x42** for the TOH bus. Register map at the top of `devkit-fw.ino`. v0.3: magic `TOHD`, version, uptime, the Zero's RGB LED (0x10–0x12) and an LED on GP14 (330 Ω to GND) (0x14, PWM).
+`devkit-fw/`: I²C target at **0x42** for the TOH bus. Register map at the top of `devkit-fw.ino`. v0.4: magic `TOHD`, version, uptime, the Zero's RGB LED (0x10–0x12) and an LED on GP14 (330 Ω to GND) (0x14, PWM).
 
 **The TOH bus doesn't support clock stretching** (checked with a logic analyzer): the phone keeps clocking while a target holds SCL low. So the firmware doesn't use the Arduino Wire library (its interrupt handler answered a read after ~9 µs, and the phone read garbage). Instead, core 1 polls the RP2040's I²C block from RAM and answers at once.
 
-Known issues (v0.3): the first read after the Zero restarts returns garbage; after a garbled read the Zero can lock up holding SCL low until RESET.
+Known issue: the first read after the Zero restarts can return garbage, so check what you read (e.g. the `TOHD` magic) and retry.
+
+Fixed in v0.4: after a garbled read the Zero could lock up holding SCL low until RESET. A pending TX abort is now cleared before a read is answered; while that flag was set, the RP2040's TX FIFO discarded the answer. Verified with the same fix in the TOH IR firmware (60 of 60 reads correct, no lock-up).
 
 ## Wiring (breadboard)
 

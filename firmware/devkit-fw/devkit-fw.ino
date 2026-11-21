@@ -1,4 +1,4 @@
-// TOH DevKit firmware v0.3: RP2040-Zero as I2C target for the Jolla Phone 2026's TOH connector.
+// TOH DevKit firmware v0.4: RP2040-Zero as I2C target for the Jolla Phone 2026's TOH connector.
 // Board: Waveshare RP2040-Zero, Arduino core "Raspberry Pi Pico/RP2040" by Earle Philhower (rp2040:rp2040).
 // Build/flash: see ../README.md.
 //
@@ -30,7 +30,7 @@
 
 const uint8_t ADDR = 0x42, PIN_SDA = 26, PIN_SCL = 15, PIN_LED = 16, PIN_GP14 = 14;
 #define I2C_HW i2c1   // the block that owns PIN_SDA/PIN_SCL: i2c0 for e.g. GP0/1 or GP28/29, i2c1 for GP26/GP15
-const uint8_t VER_MAJOR = 0, VER_MINOR = 3;
+const uint8_t VER_MAJOR = 0, VER_MINOR = 4;
 const uint8_t REG_UPTIME = 0x06, REG_LED = 0x10, REG_GP14 = 0x14, REG_BOOT = 0xF0, BOOT_MAGIC = 0xB0;
 
 // The Zero's LED takes red, green, blue in this order (NEO_GRB showed green as red)
@@ -53,6 +53,9 @@ static void __not_in_flash_func(i2cTargetLoop)() {
     nLoops++;
 #endif
     uint32_t raw = h->raw_intr_stat;
+    // v0.4 lock-up fix: clear a pending TX abort BEFORE answering a read. While the abort flag is set, the TX FIFO
+    // discards writes, so the answer got lost and the RP2040 held SCL low until a reset.
+    if (raw & I2C_IC_RAW_INTR_STAT_TX_ABRT_BITS) { (void)h->clr_tx_abrt; nAborts++; }  // e.g. leftover byte flushed
     if (raw & I2C_IC_RAW_INTR_STAT_RD_REQ_BITS) {            // controller wants a byte: answer at once
       h->data_cmd = regs[ptr++];
       (void)h->clr_rd_req;
@@ -72,7 +75,6 @@ static void __not_in_flash_func(i2cTargetLoop)() {
         ptr++;                                                 // writes to read-only registers are ignored
       }
     }
-    if (raw & I2C_IC_RAW_INTR_STAT_TX_ABRT_BITS) { (void)h->clr_tx_abrt; nAborts++; }  // e.g. leftover byte flushed
     if (raw & I2C_IC_RAW_INTR_STAT_STOP_DET_BITS) (void)h->clr_stop_det;
     if (raw & I2C_IC_RAW_INTR_STAT_START_DET_BITS) (void)h->clr_start_det;
     if (raw & I2C_IC_RAW_INTR_STAT_RESTART_DET_BITS) (void)h->clr_restart_det;
