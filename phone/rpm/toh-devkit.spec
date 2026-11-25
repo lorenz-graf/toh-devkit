@@ -6,7 +6,7 @@
 
 Name:       toh-devkit
 Version:    %{tdk_version}
-Release:    4
+Release:    1
 Summary:    TOH DevKit: talk to the breadboard dev cover's microcontroller
 License:    BSD-3-Clause
 URL:        https://github.com/lorenz-graf/toh-devkit

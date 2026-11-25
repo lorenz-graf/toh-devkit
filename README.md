@@ -155,7 +155,7 @@ Then you should measure ~4.6 V between the header's `5V` and `GND`.
 
 ## Firmware ([firmware/](firmware/))
 
-RP2040-Zero as I²C target at **0x42** (register map in [firmware/devkit-fw/devkit-fw.ino](firmware/devkit-fw/devkit-fw.ino)): magic `TOHD`, version, uptime, the Zero's RGB LED, an LED on GP14. Build and flash: [firmware/README.md](firmware/README.md).
+RP2040-Zero as I²C target at **0x42** (register map in [firmware/devkit-fw/devkit-fw.ino](firmware/devkit-fw/devkit-fw.ino)): magic `TOHD`, version, uptime, the Zero's RGB LED, an LED on GP14, and (v0.5) bench registers for a bus speed test. Build and flash: [firmware/README.md](firmware/README.md).
 
 **Lesson learned: the TOH bus doesn't support clock stretching.** With a logic analyzer I saw the phone keep clocking while the RP2040 held SCL low, so reads came back bit-shifted. That's expected on an I3C bus (old-style I²C devices must not stretch the clock there). The Arduino Wire library's interrupt handler needed ~9 µs to answer a read, which is far too slow, so the firmware lets core 1 poll the I²C block instead. Any microcontroller on a TOH has to have its answer ready at once.
 
@@ -163,7 +163,7 @@ RP2040-Zero as I²C target at **0x42** (register map in [firmware/devkit-fw/devk
 
 One RPM (`phone/build-rpm.sh`; Go binaries cross-compiled, the app is plain QML):
 
-- **`toh-i2c`**: command-line tool for one I²C transfer without root, e.g. `toh-i2c 0x42 w 0x00 r 6` → `54 4f 48 44 00 03` ("TOHD", version 0.3). `toh-i2c hold 30` keeps the bus powered for 30 s (handy for measuring SDA/SCL)
+- **`toh-i2c`**: command-line tool for one I²C transfer without root, e.g. `toh-i2c 0x42 w 0x00 r 6` → `54 4f 48 44 00 03` ("TOHD", version 0.3). `toh-i2c hold 30` keeps the bus powered for 30 s (handy for measuring SDA/SCL). `toh-i2c bench` measures the bus speed against firmware 0.5+: about **44 kB/s** in both directions with transfers of 1 KB or more, 0 errors (the phone runs the bus at a fixed 400 kHz; small transfers are slower, ~27 kB/s at 16 bytes)
 - **`toh-devkitd`**: small service on the session D-Bus (`io.github.lorenz_graf.TohDevkit`), started on demand; the app talks to it
 - **TOH DevKit app**: switch + brightness for the GP14 LED, colour field + brightness for the RGB LED
 - **symbiosis config** for DEV mode (`/usr/share/tohd-1/tohs/0000/0000/devkit.yaml`): allows those two programs on the bus and lists 0x42 and 0x50 (every address used must be listed)

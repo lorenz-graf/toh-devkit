@@ -1,6 +1,6 @@
 # Firmware (RP2040-Zero)
 
-`devkit-fw/`: I²C target at **0x42** for the TOH bus. Register map at the top of `devkit-fw.ino`. v0.4: magic `TOHD`, version, uptime, the Zero's RGB LED (0x10–0x12) and an LED on GP14 (330 Ω to GND) (0x14, PWM).
+`devkit-fw/`: I²C target at **0x42** for the TOH bus. Register map at the top of `devkit-fw.ino`. v0.5: magic `TOHD`, version, uptime, the Zero's RGB LED (0x10–0x12), an LED on GP14 (330 Ω to GND) (0x14, PWM), and bench registers (0x80 write port, 0x81 read port, 0x84–0x8B counters, 0x8C reset) for `toh-i2c bench`.
 
 **The TOH bus doesn't support clock stretching** (checked with a logic analyzer): the phone keeps clocking while a target holds SCL low. So the firmware doesn't use the Arduino Wire library (its interrupt handler answered a read after ~9 µs, and the phone read garbage). Instead, core 1 polls the RP2040's I²C block from RAM and answers at once.
 

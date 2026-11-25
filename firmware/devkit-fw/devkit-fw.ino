@@ -1,4 +1,4 @@
-// TOH DevKit firmware v0.4: RP2040-Zero as I2C target for the Jolla Phone 2026's TOH connector.
+// TOH DevKit firmware v0.5: RP2040-Zero as I2C target for the Jolla Phone 2026's TOH connector.
 // Board: Waveshare RP2040-Zero, Arduino core "Raspberry Pi Pico/RP2040" by Earle Philhower (rp2040:rp2040).
 // Build/flash: see ../README.md.
 //
@@ -18,6 +18,12 @@
 //   0x06-0x09  R   uptime in ms, uint32 little endian (snapshot taken when the pointer is set to 0x00-0x09)
 //   0x10-0x12  RW  RGB LED red, green, blue (the Zero's WS2812 on GP16)
 //   0x14       RW  LED on GP14 (through a 330 Ohm resistor to GND), brightness 0-255 (PWM)
+//   0x80       W   bench sink (port: the pointer stays): counts every byte and checks it against the pattern
+//                  0, 1, 2, ... 255, 0, ... that restarts at 0 whenever the pointer is set to 0x80
+//   0x81       R   bench source (port): returns 0, 1, 2, ... 255, 0, ... restarting at 0 whenever the pointer is set
+//   0x84-0x87  R   bench: bytes received at 0x80, uint32 LE (since the last reset)
+//   0x88-0x8B  R   bench: pattern errors at 0x80, uint32 LE (resyncs to the received byte after an error)
+//   0x8C       W   write 0x5A = reset the bench counters
 //   0xF0       W   write 0xB0 = reboot into the USB bootloader (BOOTSEL), for flashing without the button
 #include <hardware/i2c.h>
 #include <hardware/gpio.h>
@@ -30,14 +36,25 @@
 
 const uint8_t ADDR = 0x42, PIN_SDA = 26, PIN_SCL = 15, PIN_LED = 16, PIN_GP14 = 14;
 #define I2C_HW i2c1   // the block that owns PIN_SDA/PIN_SCL: i2c0 for e.g. GP0/1 or GP28/29, i2c1 for GP26/GP15
-const uint8_t VER_MAJOR = 0, VER_MINOR = 4;
+const uint8_t VER_MAJOR = 0, VER_MINOR = 5;
 const uint8_t REG_UPTIME = 0x06, REG_LED = 0x10, REG_GP14 = 0x14, REG_BOOT = 0xF0, BOOT_MAGIC = 0xB0;
+const uint8_t REG_SINK = 0x80, REG_SOURCE = 0x81, REG_BCOUNT = 0x84, REG_BERR = 0x88, REG_BRESET = 0x8C,
+              BRESET_MAGIC = 0x5A;
 
 // The Zero's LED takes red, green, blue in this order (NEO_GRB showed green as red)
 Adafruit_NeoPixel led(1, PIN_LED, NEO_RGB + NEO_KHZ800);
 volatile uint8_t regs[256];
 volatile bool ledDirty = true, gp14Dirty = true, bootReq = false;
 volatile uint32_t nWrites = 0, nReads = 0, nAborts = 0, nLoops = 0;
+static uint32_t benchCount = 0, benchErr = 0;   // core 1 only
+static uint8_t sinkNext = 0, srcNext = 0;
+
+static void __not_in_flash_func(publishBench)() {
+  for (int i = 0; i < 4; i++) {
+    regs[REG_BCOUNT + i] = (benchCount >> (8 * i)) & 0xFF;
+    regs[REG_BERR + i] = (benchErr >> (8 * i)) & 0xFF;
+  }
+}
 
 static void __not_in_flash_func(snapshotUptime)() {
   uint32_t t = millis();
@@ -57,7 +74,7 @@ static void __not_in_flash_func(i2cTargetLoop)() {
     // discards writes, so the answer got lost and the RP2040 held SCL low until a reset.
     if (raw & I2C_IC_RAW_INTR_STAT_TX_ABRT_BITS) { (void)h->clr_tx_abrt; nAborts++; }  // e.g. leftover byte flushed
     if (raw & I2C_IC_RAW_INTR_STAT_RD_REQ_BITS) {            // controller wants a byte: answer at once
-      h->data_cmd = regs[ptr++];
+      h->data_cmd = (ptr == REG_SOURCE) ? srcNext++ : regs[ptr++];
       (void)h->clr_rd_req;
       nReads++;
     }
@@ -67,11 +84,19 @@ static void __not_in_flash_func(i2cTargetLoop)() {
       if (dc & I2C_IC_DATA_CMD_FIRST_DATA_BYTE_BITS) {       // first byte after the address = register pointer
         ptr = v;
         if (ptr <= REG_UPTIME + 3) snapshotUptime();
+        else if (ptr == REG_SINK) sinkNext = 0;
+        else if (ptr == REG_SOURCE) srcNext = 0;
+        else if (ptr >= REG_BCOUNT && ptr < REG_BERR + 4) publishBench();
         nWrites++;
+      } else if (ptr == REG_SINK) {                           // port: the pointer stays
+        benchCount++;
+        if (v != sinkNext) benchErr++;
+        sinkNext = v + 1;
       } else {
         if (ptr >= REG_LED && ptr <= REG_LED + 2) { regs[ptr] = v; ledDirty = true; }
         else if (ptr == REG_GP14) { regs[ptr] = v; gp14Dirty = true; }
         else if (ptr == REG_BOOT && v == BOOT_MAGIC) bootReq = true;
+        else if (ptr == REG_BRESET && v == BRESET_MAGIC) { benchCount = benchErr = 0; publishBench(); }
         ptr++;                                                 // writes to read-only registers are ignored
       }
     }

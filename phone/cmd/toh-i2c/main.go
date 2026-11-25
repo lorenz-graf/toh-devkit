@@ -4,11 +4,14 @@
 //
 //	toh-i2c [-d ms] [-n count] <addr> [w <byte>...] [r <count>]
 //	toh-i2c hold <seconds>
+//	toh-i2c bench [seconds]
 //
 //	toh-i2c 0x42 w 0x00 r 6        read 6 bytes from register 0x00
 //	toh-i2c 0x42 w 0x10 255 0 0    write 3 bytes from register 0x10 on
 //	toh-i2c -d 50 -n 5 0x42 w 0 r 6   wait 50 ms after borrowing, then try up to 5 times (100 ms apart)
 //	toh-i2c hold 30                keep the bus borrowed (5 V and pull-ups on) for 30 s, e.g. to measure SDA/SCL
+//	toh-i2c bench 2                speed test against the DevKit firmware's bench registers (0x42, firmware 0.5+),
+//	                               2 s per transfer size and direction (default 2)
 //
 // Prints read bytes as hex. Exit code 0 = success.
 package main
@@ -36,7 +39,7 @@ func num(s string, max uint64) uint64 {
 }
 
 func usage() {
-	fmt.Fprintln(os.Stderr, "usage: toh-i2c [-d ms] [-n count] <addr> [w <byte>...] [r <count>]\n       toh-i2c hold <seconds>")
+	fmt.Fprintln(os.Stderr, "usage: toh-i2c [-d ms] [-n count] <addr> [w <byte>...] [r <count>]\n       toh-i2c hold <seconds>\n       toh-i2c bench [seconds]")
 	os.Exit(2)
 }
 
@@ -50,6 +53,27 @@ func main() {
 			tries = int(num(a[1], 1000))
 		}
 		a = a[2:]
+	}
+	if len(a) >= 1 && a[0] == "bench" {
+		secs := uint64(2)
+		if len(a) >= 2 {
+			secs = num(a[1], 60)
+		}
+		sys, err := dbus.SystemBus()
+		if err != nil {
+			die("system bus: %v", err)
+		}
+		fd, release, err := tohbus.Borrow(sys)
+		if err != nil {
+			die("%v", err)
+		}
+		time.Sleep(100 * time.Millisecond)
+		err = bench(fd, 0x42, time.Duration(secs)*time.Second)
+		release()
+		if err != nil {
+			die("%v", err)
+		}
+		return
 	}
 	if len(a) < 2 {
 		usage()

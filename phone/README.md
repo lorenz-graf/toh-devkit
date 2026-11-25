@@ -33,6 +33,7 @@ toh-i2c 0x42 w 0x10 0 40 0        # RGB LED green
 toh-i2c 0x42 w 0x14 255           # GP14 LED full
 toh-i2c -d 50 -n 5 0x42 w 0 r 6   # wait 50 ms after borrowing, up to 5 tries
 toh-i2c hold 30                   # keep the bus borrowed (5 V + pull-ups on) for 30 s, e.g. to measure SDA/SCL
+toh-i2c bench 2                   # speed test (firmware 0.5+): kB/s per transfer size, write and read, every byte checked
 gdbus call --session --dest io.github.lorenz_graf.TohDevkit --object-path /io/github/lorenz_graf/TohDevkit \
   --method io.github.lorenz_graf.TohDevkit.Info           # ('TOHD 0.3, up 7 s',)
 ```
