@@ -30,7 +30,7 @@ TOH spec (pins, ID resistors, memory chip format): https://docs.sailfishos.org/D
  [RP2040-Zero + modules] on the breadboard
 ```
 
-- **Cover** (`model/`): the community **cTOH-M** frame from Jolla's [toh-designs](https://github.com/sailfishos/toh-designs) repo, laid flat for printing, plus the wire slot. The frame already has an indent for a contact board; nothing else was changed
+- **Cover** (`model/default-bump/`): the community **cTOH-M** frame from Jolla's [toh-designs](https://github.com/sailfishos/toh-designs) repo, laid flat for printing, plus the wire slot. The frame already has an indent for a contact board; nothing else was changed
 - **Contact board:** 0.6 mm thick, meant to sit flush in the indent. 7 gold pads should touch the phone's pins; vias carry the signals to wire pads on the other side, right above the slot
 - **Breakout board:** takes the wires, sets the cover's ID, ties INT to GND, protects the phone from USB backfeed, and gives the breadboard a clean 6-pin header
 
@@ -107,7 +107,7 @@ Firmware should always serve both 0x50 and its own address (planned 0x42); then 
 
 ## Parts
 
-- Printed: [model/ctohm-dev.stl](model/ctohm-dev.stl) (frame) + [model/ctohm-bump-roof-down.stl](model/ctohm-bump-roof-down.stl) (camera bump)
+- Printed: [model/default-bump/ctohm-dev.stl](model/default-bump/ctohm-dev.stl) (frame) + [model/default-bump/ctohm-bump-roof-down.stl](model/default-bump/ctohm-bump-roof-down.stl) (camera bump)
 - Contact board: order with 0.6 mm, ENIG, vias tented (Gerbers: [pcb/contact/dev-toh-contact-gerbers.zip](pcb/contact/dev-toh-contact-gerbers.zip))
 - Breakout board: order with defaults, 1.6 mm, HASL ([pcb/breakout/dev-toh-breakout-gerbers.zip](pcb/breakout/dev-toh-breakout-gerbers.zip))
 - For the breakout: 1N5817 (or SS14, SMA), 6.2 kΩ and 10 kΩ (1/4 W THT, or 1206/0805 SMD), 1×6 and 1×2 male header, jumper cap or female–female Dupont wire (only after cutting JP4)
@@ -116,7 +116,7 @@ Firmware should always serve both 0x50 and its own address (planned 0x42); then 
 ## Printing
 
 - **Frame:** load as exported, outside face down. cTOH-M's authors recommend ASA with X/Y scaled to 100.3 % (needs an enclosed printer); PETG should work without. PLA is not advised (softens from the phone's heat, creeps under the clip tension). Check the side hooks for overhangs in the slicer
-- **Bump:** [model/ctohm-bump-roof-down.stl](model/ctohm-bump-roof-down.stl), roof (outer face) down, without supports: the visible side gets the bed's surface like the frame, the walls grow straight up, and only the ~1 mm lip at the open edge overhangs slightly. The older [model/ctohm-bump.stl](model/ctohm-bump.stl) (open side down, roof on the source's built-in supports) printed poorly for me
+- **Bump:** [model/default-bump/ctohm-bump-roof-down.stl](model/default-bump/ctohm-bump-roof-down.stl), roof (outer face) down, without supports: the visible side gets the bed's surface like the frame, the walls grow straight up, and only the ~1 mm lip at the open edge overhangs slightly. The older [model/default-bump/ctohm-bump.stl](model/default-bump/ctohm-bump.stl) (open side down, roof on the source's built-in supports) printed poorly for me
 - The indent floor sits at 0.8 mm and the inner surface at 1.4 mm, both multiples of 0.2 mm, so 0.2 mm layers give the 0.6 mm pocket depth exactly
 - **After printing check:** the cover clips on firmly, the bump fits its opening, the indent is clean (no support remains) and ~0.6 mm deep. If the board is tight in the indent, sand its edge lightly
 
@@ -199,7 +199,9 @@ As far as I found, Sailfish has no way to prompt for a companion app on attach; 
 
 ## Files
 
-- `model/ctohm-dev.step|stl`: cover frame (outside face down, ready for the slicer). `model/ctohm-bump-roof-down.stl`: camera bump (print roof down; `ctohm-bump.stl` is the older open-side-down variant). `model/indent-outline.txt`: indent outline used for the PCB
+- `model/default-bump/`: the DevKit cover as built. `ctohm-dev.stl`: cover frame (outside face down, ready for the slicer). `ctohm-bump-roof-down.stl`: camera bump (print roof down; `ctohm-bump.stl` is the older open-side-down variant). `indent-outline.txt`: indent outline used for the PCB
+- `model/wide-bump/` (not printed yet): a generic base for covers with a wider camera bump, which should stop the phone from rocking when it lies on its back (the stock bump is off-centre). `ctohm-cover.stl`: cTOH-M frame with a wide cutout and a 6.5 mm cable channel from the contact board up to it. `ctohm-bump.stl`: the bump, 5.7 mm from both long edges, with a compartment on the phone side for electronics. `ctohm-lid.stl`: snaps in to close the compartment. Made by `scripts/make_wide_bump.py`
+- STEP files of all models are in a `step/` folder next to the STLs
 - [pcb/contact/](pcb/contact/), [pcb/breakout/](pcb/breakout/): `make_board.py` generates the KiCad board (edit the script, not the board), `README.md` with details, `dev-toh-*-gerbers.zip` = current design (breakout: v3; the ordered v2 is `dev-toh-breakout-v2-gerbers-ordered.zip`)
 - [ID-modes.md](ID-modes.md): DEV vs CHIP mode in detail
 - `renders/`: `dev-cover.png` (model + slot), `pcb-check.png` (contact board in the cover), `breakout.png` (with through-hole parts), `breakout-bare.png` (bare board, shows the SMD pads), `clips-compare.png` (Jolla's clips vs cTOH-M's), `measure-cover-pads.png` (measurements on a real Inari Blue), `wiring.png` (cover slot → breakout), `wire-pads-outside.png` (wire pads seen through the slot)

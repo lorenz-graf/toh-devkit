@@ -1,5 +1,5 @@
 # Overview image of the dev cover model (make_dev_cover.py): inside close-up with the indent, pads and wire slot,
-# plus the outside. Renders (measure_render.py on model/ctohm-dev.stl):
+# plus the outside. Renders (measure_render.py on model/default-bump/ctohm-dev.stl):
 #   inside close-up: -- <stl> <in.png> -17.5 -71.8 32 45 20 ; outside: -- <stl> <out.png> 0 -0.3 8 84 166 outside
 # Usage: python3 dev_cover_sheet.py <in.png> <out.png> <result.png>
 import sys
@@ -13,7 +13,7 @@ ii, oo = Image.open(fin).convert("RGB"), Image.open(fout).convert("RGB")
 oo = oo.resize((oo.width * 3 // 4, oo.height * 3 // 4), Image.LANCZOS)   # 6 px/mm
 W, H = 60 + oo.width + 60 + ii.width + 40, 1400
 cv = Image.new("RGB", (W, H), "white"); d = ImageDraw.Draw(cv)
-d.text((40, 20), "Dev cover: cTOH-M frame + wire slot (model/ctohm-dev.step|stl)", fill=INK, font=b40)
+d.text((40, 20), "Dev cover: cTOH-M frame + wire slot (model/default-bump/ctohm-dev.stl)", fill=INK, font=b40)
 d.text((40, 80), "The contact-board indent (0.6 mm deep, pad dimples) is part of cTOH-M already; new is only the wire slot through its floor.", fill=GREY, font=f22)
 # outside
 OX1, OY1 = 40, 200

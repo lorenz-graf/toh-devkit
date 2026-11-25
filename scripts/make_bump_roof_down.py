@@ -15,7 +15,7 @@ def src(name):
         if os.path.exists(p): return p
     raise FileNotFoundError(name + " (set TOH_DESIGNS to a clone of github.com/sailfishos/toh-designs)")
 SRC = src("2-Bump-Final2_with_integrated_supports.step")
-OUT = os.path.join(REPO, "model", "ctohm-bump-roof-down.stl")
+OUT = os.path.join(REPO, "model", "default-bump", "ctohm-bump-roof-down.stl")
 s = Part.read(SRC)
 # source: thickness along Y, inner (open) side at Y min, roof at Y max. Rotate +90 deg about X: Y -> -Z, so the roof
 # ends up at the bottom

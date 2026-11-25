@@ -18,7 +18,7 @@ def src(name):
         if os.path.exists(p): return p
     raise FileNotFoundError(name + " (set TOH_DESIGNS to a clone of github.com/sailfishos/toh-designs)")
 OG = src("Optional_Frame-Final1-no sanding.step")
-OUT = os.path.join(REPO, "model")
+OUT = os.path.join(REPO, "model", "default-bump"); os.makedirs(os.path.join(OUT, "step"), exist_ok=True)   # STLs; STEPs in step/
 SLOT_U = (25.0, 34.0)   # wire slot, mm from the phone's right edge
 SLOT_V = (9.5, 12.5)    # mm from the phone's bottom edge (inside the indent's upper-right arm)
 R = 1.0                 # slot corner radius
@@ -60,6 +60,6 @@ if len(sol) > 1:
     fused = sol[0].fuse(sol[1:]).removeSplitter()
     if fused.isValid() and len(fused.Solids) == 1: r = fused
 print("solids in result:", len(r.Solids))
-r.exportStep(os.path.join(OUT, "ctohm-dev.step"))
+r.exportStep(os.path.join(OUT, "step", "ctohm-dev.step"))
 MeshPart.meshFromShape(Shape=r, LinearDeflection=0.02, AngularDeflection=0.15).write(os.path.join(OUT, "ctohm-dev.stl"))
 print("volume before", round(s.Volume, 1), "after", round(r.Volume, 1))

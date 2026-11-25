@@ -1,12 +1,12 @@
-# Blender: render the OUTSIDE of the dev cover (model/ctohm-dev.stl) with the camera bump (model/ctohm-bump.stl)
+# Blender: render the OUTSIDE of the dev cover (model/default-bump/ctohm-dev.stl) with the camera bump (model/default-bump/ctohm-bump.stl)
 # put back where it sits on the phone. Two images: straight-on (orthographic) and a close-up of the wire slot.
 # Usage (from the repo root): blender -b --python scripts/outside_render.py -- <out_dir>
 # Then: python3 scripts/outside_sheet.py <out_dir> renders/wire-pads-outside.png
 import os, sys, math, bpy, mathutils
 out = os.path.abspath(sys.argv[sys.argv.index("--") + 1])
 bpy.ops.wm.read_factory_settings(use_empty=True)
-bpy.ops.wm.stl_import(filepath=os.path.abspath("model/ctohm-dev.stl")); frame = bpy.context.selected_objects[0]
-bpy.ops.wm.stl_import(filepath=os.path.abspath("model/ctohm-bump.stl")); bump = bpy.context.selected_objects[0]
+bpy.ops.wm.stl_import(filepath=os.path.abspath("model/default-bump/ctohm-dev.stl")); frame = bpy.context.selected_objects[0]
+bpy.ops.wm.stl_import(filepath=os.path.abspath("model/default-bump/ctohm-bump.stl")); bump = bpy.context.selected_objects[0]
 # bump STL (print pose, see make_bump.py) -> frame coords (see make_dev_cover.py): X' = -X - 0.23, Y' = Y - 78.65, Z' = -(Z + 1.64)
 bump.matrix_world = mathutils.Matrix(((-1, 0, 0, -0.23), (0, 1, 0, -78.65), (0, 0, -1, -1.64), (0, 0, 0, 1)))
 # its built-in print supports stand on the inside of the roof: hidden from outside, so they can stay
